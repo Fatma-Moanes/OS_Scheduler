@@ -10,7 +10,7 @@ build:
 clean:
 	rm -f *.out
 
-all: clean build
+all: build run clean
 
 run:
 	./process_generator.out
