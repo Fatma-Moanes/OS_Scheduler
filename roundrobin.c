@@ -19,10 +19,11 @@ heap_t *gProcessHeap;
 event_queue gEventQueue;
 
 int main(int argc, char *argv[]) {
+
     printf("RR: *** Scheduler here, and type is round robin\n");
     initClk(); //attach to shared memory of clock
     InitIPC(); //attach to the message queue of the process_generator
-    gEventQueue = NewEventQueue(); //initialize events queue
+    gEventQueue = NewEventQueue();
     gProcessHeap = (heap_t *) calloc(1, sizeof(heap_t)); //initialize processes heap
 
     signal(SIGUSR1, ProcessArrivalHandler); //handle SIGUSR1 sent by process_generator when new process is available
@@ -73,13 +74,11 @@ int ReceiveProcess() {
         printf("RR: *** Trying again");
         pEvent = malloc(sizeof(Process));
     }
-
     pEvent->mType = START;
     pEvent->mCurrentRemTime = 0;
     pEvent->mCurrentWaitTime = 0;
     pEvent->mpProcess = pProcess;
     pEvent->mTimeStep = getClk();
-
     EventQueueEnqueue(gEventQueue, pEvent); //enqueue this event in the event queue
     return 0;
 }

@@ -66,8 +66,8 @@ int main(int argc, char *argv[]) {
             kill(gSchedulerPid, SIGUSR1); //send SIGUSR1 to the scheduler
         usleep(900000); //sleep 0.9 sec
     }
-    // raise SIGINT to start the cleaning of resources
-    raise(SIGINT);
+    // invoke ClearResources() but use zero as parameter to indicate normal exit not interrupt
+    ClearResources(0);
 }
 
 int GetUserChoice() {
@@ -97,20 +97,33 @@ void ClearResources(int signum) {
     }
     printf("PG: *** Process queue cleaned!\n");
 
-    //Interrupt forked processes
-    printf("PG: *** Sending interrupt to scheduler\n");
-    if (gSchedulerPid)
-        kill(gSchedulerPid, SIGINT);
-
-    printf("PG: *** Sending interrupt to clock\n");
-    if (gClockPid) {
-        destroyClk(false);
-        kill(gClockPid, SIGINT);
-    }
-
     int status;
-    wait(&status);
-    wait(&status);
+    //if this function is invoked due to an interrupt signal then immediately interrupt all processes
+    if (signum == SIGINT) {
+        //Interrupt forked processes
+        printf("PG: *** Sending interrupt to scheduler\n");
+        if (gSchedulerPid)
+            kill(gSchedulerPid, SIGINT);
+        printf("PG: *** Sending interrupt to clock\n");
+        if (gClockPid) {
+            destroyClk(false);
+            kill(gClockPid, SIGINT);
+        }
+        //do not leave before both forked processes are done
+        wait(&status);
+        wait(&status);
+    } else { //we need to wait until Scheduler exits by itself
+        printf("PG: *** Waiting for scheduler to do its job...\n");
+        waitpid(gSchedulerPid, &status, 0); //wait until scheduler exits
+        printf("PG: *** Scheduler exit signal received\n");
+        printf("PG: *** Sending interrupt to clock\n");
+        if (gClockPid) {
+            destroyClk(false);
+            kill(gClockPid, SIGINT);
+        }
+        //do not leave before clock is done
+        wait(&status);
+    }
     printf("PG: *** Clean!\n");
     exit(EXIT_SUCCESS);
 }
@@ -198,7 +211,7 @@ void ExecuteScheduler(int type) {
         printf("PG: *** Executing scheduler...\n");
         char *argv[2];
         argv[1] = 0;
-        switch (type){
+        switch (type) {
             case 1:
                 argv[1] = "hpf.out";
                 execv("hpf.out", argv);
@@ -225,9 +238,7 @@ void SendProcess(Process *pProcess) {
     printf("PG: *** Sending process with id %d to scheduler...\n", msg.mProcess.mId);
     if (msgsnd(gMsgQueueId, (void *) &msg, sizeof(msg.mProcess), !IPC_NOWAIT) == -1) {
         perror("PG: *** Error while sending process");
-    } else
-    {
+    } else {
         printf("PG: *** Process sent!\n");
-        kill(gSchedulerPid, SIGUSR1);
     }
 }
