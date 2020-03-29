@@ -28,8 +28,6 @@ int main(int argc, char *argv[]) {
     gProcessQueue = NewProcQueue();
     //catch SIGINT
     signal(SIGINT, ClearResources);
-    //initialize the IPC
-    InitIPC();
     // TODO Initialization
     // 1. Read the input files.
     ReadFile();
@@ -39,6 +37,8 @@ int main(int argc, char *argv[]) {
         printf("PG: *** Invalid choice\n");
         choice = GetUserChoice();
     }
+    //initialize the IPC
+    InitIPC();
     // 3. Initiate and create the scheduler and clock processes.
     ExecuteClock();
     ExecuteScheduler(choice);
@@ -130,18 +130,18 @@ void ClearResources(int signum) {
 
 void ReadFile() {
     printf("PG: *** Attempting to open input file...\n");
-    FILE *fp;
-    char *line = NULL;
+    FILE *pFile;
+    char *pLine = NULL;
     size_t len = 0;
     ssize_t read;
-    fp = fopen("processes.txt", "r");
-    if (fp == NULL) {
+    pFile = fopen("processes.txt", "r");
+    if (pFile == NULL) {
         perror("PG: *** Error reading from input file");
         exit(EXIT_FAILURE);
     }
     printf("PG: *** Reading input file...\n");
-    while ((read = getline(&line, &len, fp)) != -1) {
-        if (line[0] == '#') {
+    while ((read = getline(&pLine, &len, pFile)) != -1) {
+        if (pLine[0] == '#') {
             printf("PG: *** Hash detected, skipping line\n");
             continue;
         }
@@ -153,11 +153,11 @@ void ReadFile() {
             pProcess = malloc(sizeof(Process));
         }
 
-        pProcess->mId = atoi(strtok(line, "\t"));
+        pProcess->mId = atoi(strtok(pLine, "\t"));
         pProcess->mArrivalTime = atoi(strtok(NULL, "\t"));
         pProcess->mRuntime = atoi(strtok(NULL, "\t"));
         pProcess->mPriority = atoi(strtok(NULL, "\t"));
-        pProcess->mRemainTime = 0;
+        pProcess->mRemainTime = pProcess->mRuntime;
         pProcess->mWaitTime = 0;
         printf("PG: *** Process read with the following:\n");
         PrintProcess(pProcess);
@@ -166,9 +166,9 @@ void ReadFile() {
     }
 
     printf("PG: *** Releasing file resources...\n");
-    fclose(fp);
-    if (line)
-        free(line);
+    fclose(pFile);
+    if (pLine)
+        free(pLine);
     printf("PG: *** Input file done successfully!\n");
 }
 
@@ -192,9 +192,10 @@ void ExecuteClock() {
     if (gClockPid == 0) {
         printf("PG: *** Clock forking done!\n");
         printf("PG: *** Executing clock...\n");
-        char *argv[] = {"clk.out", 0};
+        char *argv[] = {"clk.out", NULL};
         execv("clk.out", argv);
-        exit(EXIT_SUCCESS);
+        perror("PG: *** Clock execution failed");
+        exit(EXIT_FAILURE);
     }
 
 }
@@ -210,24 +211,25 @@ void ExecuteScheduler(int type) {
         printf("PG: *** Scheduler forking done!\n");
         printf("PG: *** Executing scheduler...\n");
         char *argv[2];
-        argv[1] = 0;
+        argv[1] = NULL;
         switch (type) {
             case 1:
-                argv[1] = "hpf.out";
+                argv[0] = "hpf.out";
                 execv("hpf.out", argv);
                 break;
             case 2:
-                argv[1] = "srtn.out";
+                argv[0] = "srtn.out";
                 execv("srtn.out", argv);
                 break;
             case 3:
-                argv[1] = "roundrobin.out";
+                argv[0] = "roundrobin.out";
                 execv("roundrobin.out", argv);
                 break;
             default:
                 break;
         }
-        exit(EXIT_SUCCESS);
+        perror("PG: *** Scheduler execution failed");
+        exit(EXIT_FAILURE);
     }
 }
 
