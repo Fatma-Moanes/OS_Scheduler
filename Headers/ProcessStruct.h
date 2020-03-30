@@ -5,7 +5,7 @@
 #ifndef OS_STARTER_CODE_PROCESS_H
 #define OS_STARTER_CODE_PROCESS_H
 
-#include <stdio.h>
+#include "headers.h"
 
 typedef struct Processes {
     unsigned int mId;
@@ -14,6 +14,9 @@ typedef struct Processes {
     unsigned int mRuntime;
     unsigned int mRemainTime;
     unsigned int mWaitTime;
+    unsigned int mLastStop; //stores the last time at which this process stopped
+    pid_t mPid; //stores the pid of the process after the scheduler executes it
+
 } Process;
 
 void PrintProcess(Process *pProcess) {  //for debugging purposes
