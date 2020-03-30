@@ -6,60 +6,61 @@
 #ifndef OS_STARTER_CODE_PROCESSQUEUE_H
 #define OS_STARTER_CODE_PROCESSQUEUE_H
 
-#include "ProcessStruct.h"
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
+#include "ProcessStruct.h"
 
-typedef Process *DATA; /* type of data to store in queue */
-typedef struct {
-    DATA *buf;
-    size_t head, tail, alloc;
-} queue_t, *queue;
+typedef struct node_t_q node_t_q, *node, *queue;
+struct node_t_q {
+    Process *val;
+    node prev, next;
+};
+typedef Process *DATA;
+
+#define HEAD(q) q->prev
+#define TAIL(q) q->next
 
 queue NewProcQueue() {
-    queue q = malloc(sizeof(queue_t));
-    q->buf = malloc(sizeof(DATA) * (q->alloc = 4));
-    q->head = q->tail = 0;
+    node q = (node) malloc(sizeof(node_t_q));
+    q->next = q->prev = 0;
     return q;
 }
 
 int ProcQueueEmpty(queue q) {
-    return q->tail == q->head;
+    return !HEAD(q);
 }
 
 void ProcEnqueue(queue q, DATA n) {
-    if (q->tail >= q->alloc) q->tail = 0;
-    q->buf[q->tail++] = n;
-
-    // Fixed bug where it failed to resize
-    if (q->tail == q->alloc) {  /* needs more room */
-        q->buf = realloc(q->buf, sizeof(DATA) * q->alloc * 2);
-        if (q->head) {
-            memcpy(q->buf + q->head + q->alloc, q->buf + q->head,
-                   sizeof(DATA) * (q->alloc - q->head));
-            q->head += q->alloc;
-        } else
-            q->tail = q->alloc;
-        q->alloc *= 2;
-    }
+    node nd = (node) malloc(sizeof(node_t_q));
+    nd->val = n;
+    if (!HEAD(q))
+        HEAD(q) = nd;
+    nd->prev = TAIL(q);
+    if (nd->prev)
+        nd->prev->next = nd;
+    TAIL(q) = nd;
+    nd->next = 0;
 }
 
-int ProcDequeue(queue q, DATA *n) {
-    if (q->head == q->tail) return 0;
-    *n = q->buf[q->head++];
-    if (q->head >= q->alloc) { /* reduce allocated storage no longer needed */
-        q->head = 0;
-        if (q->alloc >= 512 && q->tail < q->alloc / 2)
-            q->buf = realloc(q->buf, sizeof(DATA) * (q->alloc /= 2));
-    }
+int ProcDequeue(queue q, DATA *val) {
+    node tmp = HEAD(q);
+    if (!tmp)
+        return 0;
+    *val = tmp->val;
+
+    HEAD(q) = tmp->next;
+    if (TAIL(q) == tmp)
+        TAIL(q) = 0;
+    free(tmp);
+
     return 1;
 }
 
-int ProcPeek(queue q, DATA *n) {
-    if (q->head == q->tail)
+int ProcPeek(queue q, DATA *val) {
+    node tmp = HEAD(q);
+    if (!tmp)
         return 0;
-    *n = q->buf[q->head];
+    *val = tmp->val;
     return 1;
 }
 
