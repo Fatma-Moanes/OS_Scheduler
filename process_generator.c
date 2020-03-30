@@ -14,7 +14,7 @@ int GetUserChoice();
 
 void ExecuteClock();
 
-void ExecuteScheduler(int);
+void ExecuteScheduler(int, int);
 
 void SendProcess(Process *);
 
@@ -37,11 +37,17 @@ int main(int argc, char *argv[]) {
         printf("PG: *** Invalid choice\n");
         choice = GetUserChoice();
     }
+    int quanta = 0;
+    if (choice == 3)
+    {
+        printf("Enter quanta:\n");
+        scanf("%d", &quanta);
+    }
     //initialize the IPC
     InitIPC();
     // 3. Initiate and create the scheduler and clock processes.
+    ExecuteScheduler(choice, quanta);
     ExecuteClock();
-    ExecuteScheduler(choice);
     // 4. Use this function after creating the clock process to initialize clock
     initClk();
     // To get time use this
@@ -200,7 +206,7 @@ void ExecuteClock() {
 
 }
 
-void ExecuteScheduler(int type) {
+void ExecuteScheduler(int type, int quanta) {
     gSchedulerPid = fork();
     while (gSchedulerPid == -1) {
         perror("PG: *** Error forking scheduler");
@@ -210,8 +216,9 @@ void ExecuteScheduler(int type) {
     if (gSchedulerPid == 0) {
         printf("PG: *** Scheduler forking done!\n");
         printf("PG: *** Executing scheduler...\n");
-        char *argv[2];
+        char *argv[3];
         argv[1] = NULL;
+        char buffer[10];
         switch (type) {
             case 1:
                 argv[0] = "hpf.out";
@@ -222,6 +229,9 @@ void ExecuteScheduler(int type) {
                 execv("srtn.out", argv);
                 break;
             case 3:
+                sprintf(buffer, "%d", quanta);
+                argv[2] = NULL;
+                argv[1] = buffer;
                 argv[0] = "roundrobin.out";
                 execv("roundrobin.out", argv);
                 break;
