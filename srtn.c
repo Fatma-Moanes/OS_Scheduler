@@ -1,8 +1,8 @@
-#include "Headers/EventsQueue.h"
 #include "Headers/headers.h"
 #include "Headers/ProcessStruct.h"
 #include "Headers/ProcessHeap.h"
 #include "Headers/MessageBuffer.h"
+#include "Headers/EventsQueue.h"
 #include <math.h>
 
 void ProcessArrivalHandler(int);
