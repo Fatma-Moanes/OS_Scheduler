@@ -161,9 +161,12 @@ void ChildHandler(int signum) {
 void LogEvents(unsigned int start_time, unsigned int end_time) {  //prints all events in the terminal
     unsigned int runtime_sum = 0, waiting_sum = 0, count = 0;
     double wta_sum = 0, wta_squared_sum = 0;
+
+    FILE *pFile = fopen("Events.txt", "w");
     Event *pEvent = NULL;
     while (EventQueueDequeue(gEventQueue, &pEvent)) { //while event queue is not empty
         PrintEvent(pEvent);
+        OutputEvent(pEvent, pFile);
         if (pEvent->mType == FINISH) {
             runtime_sum += pEvent->mpProcess->mRuntime;
             waiting_sum += pEvent->mCurrentWaitTime;
@@ -174,22 +177,30 @@ void LogEvents(unsigned int start_time, unsigned int end_time) {  //prints all e
         }
         free(pEvent); //free memory allocated by the event
     }
+    fclose(pFile);
+    //cpu utilization = useful time / total time
     double cpu_utilization = runtime_sum * 100.0 / (end_time - start_time);
     double avg_wta = wta_sum / count;
     double avg_waiting = (double) waiting_sum / count;
     double std_wta = sqrt((wta_squared_sum - (2 * wta_sum * avg_wta) + (avg_wta * avg_wta * count)) / count);
 
+    pFile = fopen("Stats.txt", "w");
     printf("\nCPU utilization = %.2f\n", cpu_utilization);
     printf("Avg WTA = %.2f\n", avg_wta);
     printf("Avg Waiting = %.2f\n", avg_waiting);
     printf("STD WTA = %.2f\n\n", std_wta);
+
+    fprintf(pFile, "Avg Waiting = %.2f\n", avg_waiting);
+    fprintf(pFile, "\nCPU utilization = %.2f\n", cpu_utilization);
+    fprintf(pFile, "Avg WTA = %.2f\n", avg_wta);
+    fprintf(pFile, "STD WTA = %.2f\n\n", std_wta);
 }
 
 void AddEvent(enum EventType type) {
     Event *pEvent = malloc(sizeof(Event));
     while (!pEvent) {
-        perror("SRTN: *** Malloc failed");
-        printf("SRTN: *** Trying again");
+        perror("RR: *** Malloc failed");
+        printf("RR: *** Trying again");
         pEvent = malloc(sizeof(Event));
     }
     pEvent->mTimeStep = getClk();
@@ -202,5 +213,4 @@ void AddEvent(enum EventType type) {
     pEvent->mType = type;
     pEvent->mCurrentRemTime = gpCurrentProcess->mRemainTime;
     EventQueueEnqueue(gEventQueue, pEvent);
-    //PrintEvent(pEvent);
 }
