@@ -90,7 +90,7 @@ void InitIPC() {
 int ReceiveProcess() {
     Message msg;
     //receive a message but do not wait, if not found return immediately
-    while (msgrcv(gMsgQueueId, &msg, __size_t sizeof(msg.mType), 0, IPC_NOWAIT) == -1) {
+    while (msgrcv(gMsgQueueId, (void *) &msg, sizeof(msg.mProcess), 0, IPC_NOWAIT) == -1) {
         perror("SRTN: *** Error in receive");
         return -1;
 
