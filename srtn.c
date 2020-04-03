@@ -113,6 +113,17 @@ int ReceiveProcess() {
 }
 
 void CleanResources() {
+    printf("SRTN: *** Cleaning scheduler resources\n");
+    Process *pProcess = NULL;
+    while ((pProcess = HeapPop(gProcessHeap)) != NULL) //while processes queue is not empty
+        free(pProcess); //free memory allocated by this process
+
+    Event *pEvent = NULL;
+    while (EventQueueDequeue(gEventQueue, &pEvent)) //while event queue is not empty
+        free(pEvent); //free memory allocated by the event
+    printf("SRTN: *** Scheduler clean!\n");
+
+
     exit(EXIT_SUCCESS);
 }
 
