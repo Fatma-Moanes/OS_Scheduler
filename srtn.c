@@ -46,18 +46,14 @@ int main(int argc, char *argv[]) {
     pause();  //wait till a process comes
 
     unsigned int start_time = getClk();
-
     while ((gpCurrentProcess = HeapPop(gProcessHeap)) != NULL) {
         ExecuteProcess(); //starts the process with the least remaining time and handles context switching
         gSwitchContext = 0;
-
         while (!gSwitchContext)  //loops as long as the current process running has the least remaining time
         {
-            sleep(1);
             gpCurrentProcess->mRemainTime--;
+            sleep(1);
         }
-
-
     }
     unsigned int end_time = getClk();
     LogEvents(start_time,end_time);
@@ -67,11 +63,15 @@ void ProcessArrivalHandler(int signum) {
     //keep looping as long as a process was received in the current iteration
     while (!ReceiveProcess());
 
+    if (!gpCurrentProcess)
+        return;
+
     if (HeapPeek(gProcessHeap)->mRuntime < gpCurrentProcess->mRemainTime) {
 
         kill(gpCurrentProcess->mPid, SIGTSTP);
         gpCurrentProcess->mLastStop = getClk();
         gSwitchContext = 1;
+        HeapPush(gProcessHeap, gpCurrentProcess->mRemainTime, gpCurrentProcess);
         AddEvent(STOP);
     }
 }
@@ -109,24 +109,11 @@ int ReceiveProcess() {
     //push the process pointer into the process heap, and use the process runtime as the value to sort the heap with
     HeapPush(gProcessHeap, pProcess->mRemainTime, pProcess);
 
-    /*
-    Event *pEvent = malloc(sizeof(Event)); //allocate memory for a new event
-    while (!pEvent) {
-        perror("SRTN: *** Malloc failed");
-        printf("SRTN: *** Trying again");
-        pEvent = malloc(sizeof(Process));
-    }
-    pEvent->mType = START;
-    pEvent->mCurrentRemTime = 0;
-    pEvent->mCurrentWaitTime = 0;
-    pEvent->mpProcess = pProcess;
-    pEvent->mTimeStep = getClk();
-    EventQueueEnqueue(gEventQueue, pEvent); //enqueue this event in the event queue
-     */
     return 0;
 }
 
 void CleanResources() {
+    exit(EXIT_SUCCESS);
 }
 
 void ExecuteProcess() {
@@ -166,7 +153,7 @@ void ChildHandler(int signum) {
         return;
 
     gSwitchContext = 1;
-    gpCurrentProcess->mRuntime = 0;
+    gpCurrentProcess->mRemainTime = 0;
     AddEvent(FINISH);
 }
 
