@@ -4,6 +4,7 @@
 #include "Headers/MessageBuffer.h"
 #include "Headers/EventsQueue.h"
 #include "Headers/ProcessQueue.h"
+#include <math.h>
 
 event_queue gEventQueue;
 heap_t *gProcessHeap;
@@ -26,7 +27,7 @@ void AddEvent(enum EventType);
 
 int gMsgQueueId = 0;
 
-
+void LogEvents(unsigned int start_time, unsigned int end_time);
 
 
 int main(int argc, char *argv[]) {
@@ -51,6 +52,8 @@ int main(int argc, char *argv[]) {
     //char *argv2[];
 
     enum EventType type = START;
+
+    int StartSimulationTime = getClk();
     while (!HeapEmpty(gProcessHeap)) {
         gpCurrentProcess= HeapPop(gProcessHeap);
         /*printf("^^ the current process to be excuted: %d \n", gpCurrentProcess->mId);
@@ -60,7 +63,7 @@ int main(int argc, char *argv[]) {
         /*if(getClk() == gpCurrentProcess->mRuntime + gpCurrentProcess->mArrivalTime  ){
             type = FINISH;
         }*/
-        AddEvent(START);
+        //AddEvent(START);
 //        int pid = fork();
 //        if(pid == 0){
 //            // in child
@@ -103,6 +106,9 @@ int main(int argc, char *argv[]) {
 
        printf("ONE WHILE LOOP FINISHED \n");
     }
+    int EndtSimulationTime = getClk();
+
+    LogEvents(StartSimulationTime, EndtSimulationTime);
     //printf("The clock after the run = %d \n", getClk());
 }
 
@@ -176,6 +182,7 @@ void AddEvent(enum EventType type) {
     pEvent->mType = type;
     //printf("Current event type is ...\n");
     pEvent->mCurrentRemTime = gpCurrentProcess->mRemainTime;
+    pEvent->mCurrentWaitTime = gpCurrentProcess->mWaitTime;
     //printf("Event is about to be created");
     EventQueueEnqueue(gEventQueue, pEvent);
     //printf("Event inserted successfully in the Queue \n");
@@ -210,6 +217,7 @@ void ExecuteProcess() {
     }
     printf("Now in the Parent of the ExcuteProcess \n");
     gpCurrentProcess->mWaitTime = getClk() - gpCurrentProcess->mArrivalTime;
+    AddEvent(START);
     /*if(gFirstTimeAddFlag==0){
         gpCurrentProcess->mWaitTime = gpCurrentProcess->mWaitTime + getClk();
         printf("THE ADDED TIME TO THE FIRST RUN TO ADJUST TIME = %d \n", getClk());
@@ -248,4 +256,29 @@ void ExecuteProcess() {
 //        AddEvent(CONT);
 //
 
+void LogEvents(unsigned int start_time, unsigned int end_time) {
+    unsigned int runtime_sum = 0, waiting_sum = 0, count = 0;
+    double wta_sum = 0, wta_squared_sum = 0;
+    Event *pEvent = NULL;
+    while (EventQueueDequeue(gEventQueue, &pEvent)) { //while event queue is not empty
+        PrintEvent(pEvent);
+        if (pEvent->mType == FINISH) {
+            runtime_sum += pEvent->mpProcess->mRuntime;
+            waiting_sum += pEvent->mCurrentWaitTime;
+            count++;
+            wta_sum += pEvent->mWTaTime;
+            wta_squared_sum += pEvent->mWTaTime * pEvent->mWTaTime;
+            free(pEvent->mpProcess);
+        }
+        free(pEvent); //free memory allocated by the event
+    }
+    double cpu_utilization = runtime_sum * 100.0 / (end_time - start_time);
+    double avg_wta = wta_sum / count;
+    double avg_waiting = (double) waiting_sum / count;
+    double std_wta = sqrt((wta_squared_sum - (2 * wta_sum * avg_wta) + (avg_wta * avg_wta * count)) / count);
 
+    printf("\nCPU utilization = %.2f\n", cpu_utilization);
+    printf("Avg WTA = %.2f\n", avg_wta);
+    printf("Avg Waiting = %.2f\n", avg_waiting);
+    printf("STD WTA = %.2f\n\n", std_wta);
+}
