@@ -22,14 +22,10 @@ void LogEvents(unsigned int, unsigned int);
 void AddEvent(enum EventType);
 
 int gMsgQueueId = 0;
-
 Process *gpCurrentProcess = NULL;
-
-heap_t *gProcessHeap;
-
-bool gSwitchContext;
-
-event_queue gEventQueue; //queue to store events occurring in the scheduler
+heap_t *gProcessHeap = NULL;
+short gSwitchContext = 0;
+event_queue gEventQueue = NULL;
 
 int main(int argc, char *argv[]) {
     printf("SRTN: *** Scheduler here\n");
@@ -38,40 +34,40 @@ int main(int argc, char *argv[]) {
     //initialize processes heap
     gProcessHeap = (heap_t *) calloc(1, sizeof(heap_t));
     gEventQueue = NewEventQueue();
-
     signal(SIGUSR1, ProcessArrivalHandler);
     signal(SIGINT, CleanResources);
     signal(SIGCHLD, ChildHandler);
 
-    pause();  //wait till a process comes
-
-    unsigned int start_time = getClk();
+    pause(); //wait for the first process to arrive
+    unsigned int start_time = getClk(); //store simulation start time
     while ((gpCurrentProcess = HeapPop(gProcessHeap)) != NULL) {
         ExecuteProcess(); //starts the process with the least remaining time and handles context switching
-        gSwitchContext = 0;
-        while (!gSwitchContext)  //loops as long as the current process running has the least remaining time
-        {
-            gpCurrentProcess->mRemainTime--;
-            sleep(1);
-        }
+        gSwitchContext = 0; //toggle switch context off until a signal handler turns it on
+        while (!gSwitchContext)
+            pause(); //pause to avoid busy waiting and only wakeup to handle signals
     }
-    unsigned int end_time = getClk();
-    LogEvents(start_time,end_time);
+    unsigned int end_time = getClk(); //store simulation end time
+    LogEvents(start_time, end_time);
 }
 
 void ProcessArrivalHandler(int signum) {
     //keep looping as long as a process was received in the current iteration
     while (!ReceiveProcess());
 
-    if (!gpCurrentProcess)
+    if (!gpCurrentProcess) //if there's no process currently running no extra checking is needed
         return;
 
-    if (HeapPeek(gProcessHeap)->mRuntime < gpCurrentProcess->mRemainTime) {
+    //current runtime of a process = current time - (arrival time of process + total waiting time of the process)
+    //then subtract this quantity from total runtime to get remaining runtime
+    gpCurrentProcess->mRemainTime =
+            gpCurrentProcess->mRuntime - (getClk() - (gpCurrentProcess->mArrivalTime + gpCurrentProcess->mWaitTime));
+    if (HeapPeek(gProcessHeap)->mRuntime < gpCurrentProcess->mRemainTime) { //if a new process has a shorter runtime
+        if (kill(gpCurrentProcess->mPid, SIGTSTP) == -1) //stop current process
+            perror("RR: *** Error stopping process");
 
-        kill(gpCurrentProcess->mPid, SIGTSTP);
-        gpCurrentProcess->mLastStop = getClk();
-        gSwitchContext = 1;
-        HeapPush(gProcessHeap, gpCurrentProcess->mRemainTime, gpCurrentProcess);
+        gpCurrentProcess->mLastStop = getClk(); //store the stop time of the current process
+        gSwitchContext = 1; //toggle switch context on so main loop can execute a new process
+        HeapPush(gProcessHeap, gpCurrentProcess->mRemainTime, gpCurrentProcess); //push current process back into heap
         AddEvent(STOP);
     }
 }
@@ -115,59 +111,53 @@ int ReceiveProcess() {
 void CleanResources() {
     printf("SRTN: *** Cleaning scheduler resources\n");
     Process *pProcess = NULL;
-    while ((pProcess = HeapPop(gProcessHeap)) != NULL) //while processes queue is not empty
+    while ((pProcess = HeapPop(gProcessHeap)) != NULL) //while processes heap is not empty
         free(pProcess); //free memory allocated by this process
 
     Event *pEvent = NULL;
     while (EventQueueDequeue(gEventQueue, &pEvent)) //while event queue is not empty
         free(pEvent); //free memory allocated by the event
     printf("SRTN: *** Scheduler clean!\n");
-
-
     exit(EXIT_SUCCESS);
 }
 
 void ExecuteProcess() {
-
-    if (gpCurrentProcess->mRemainTime == gpCurrentProcess->mRuntime)  //if the process hasn't executed before
-    {
-        gpCurrentProcess->mPid = fork();
-
-        if (gpCurrentProcess->mPid == 0) {
-
+    if (gpCurrentProcess->mRuntime == gpCurrentProcess->mRemainTime) { //if this process never ran before
+        gpCurrentProcess->mPid = fork(); //fork a new child and store its pid in the process struct
+        while (gpCurrentProcess->mPid == -1) { //if forking fails
+            perror("SRTN: *** Error forking process");
+            printf("SRTN: *** Trying again...\n");
+            gpCurrentProcess->mPid = fork();
+        }
+        if (!gpCurrentProcess->mPid) { //if child then execute the process
             char buffer[10]; //buffer to convert runtime from int to string
             sprintf(buffer, "%d", gpCurrentProcess->mRuntime);
             char *argv[] = {"process.out", buffer, NULL};
             execv("process.out", argv);
             perror("SRTN: *** Process execution failed");
             exit(EXIT_FAILURE);
-
         }
         AddEvent(START);
-
         gpCurrentProcess->mWaitTime = getClk() - gpCurrentProcess->mArrivalTime;
-
-    } else //If the process executed before and paused
-    {
-
-        //send a continue signal to the process
-        kill(gpCurrentProcess->mPid, SIGCONT);
+    } else { //this process was stopped and now we need to resume it
+        if (kill(gpCurrentProcess->mPid, SIGCONT) == -1) { //continue process
+            printf("SRTN: *** Error resuming process %d", gpCurrentProcess->mId);
+            perror(NULL);
+            return;
+        }
         gpCurrentProcess->mWaitTime += getClk() - gpCurrentProcess->mLastStop;  //update the waiting time of the process
         AddEvent(CONT);
-
     }
 };
 
 void ChildHandler(int signum) {
-    int status;
-    if (!waitpid(gpCurrentProcess->mPid, &status, WNOHANG)) //if current process did not terminate
+    if (!waitpid(gpCurrentProcess->mPid, NULL, WNOHANG)) //if current process did not terminate
         return;
 
-    gSwitchContext = 1;
-    gpCurrentProcess->mRemainTime = 0;
+    gSwitchContext = 1; //set flag to 1 so main loop knows it's time to switch context
+    gpCurrentProcess->mRemainTime = 0; //process finished so remaining time should be zero
     AddEvent(FINISH);
 }
-
 
 void LogEvents(unsigned int start_time, unsigned int end_time) {  //prints all events in the terminal
     unsigned int runtime_sum = 0, waiting_sum = 0, count = 0;
