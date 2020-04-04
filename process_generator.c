@@ -1,8 +1,8 @@
 #include "Headers/headers.h"
 #include "Headers/ProcessQueue.h"
-#include "Headers/ProcessHeap.h"
 #include "Headers/MessageBuffer.h"
 #include <string.h>
+#include "math.h"
 
 void ClearResources(int);
 
@@ -38,8 +38,7 @@ int main(int argc, char *argv[]) {
         choice = GetUserChoice();
     }
     int quanta = 0;
-    if (choice == 3)
-    {
+    if (choice == 3) {
         printf("Enter quanta:\n");
         scanf("%d", &quanta);
     }
@@ -78,7 +77,7 @@ int main(int argc, char *argv[]) {
 
 int GetUserChoice() {
     int decision;
-    printf("PG: *** Choose scheduling algorithm:\n");
+    printf("\nPG: *** Choose scheduling algorithm:\n");
     printf("1. Highest Priority First\n2. Shortest Remaining Time Next\n3. Round Robin\n");
     scanf("%d", &decision);
     return decision;
@@ -145,11 +144,10 @@ void ReadFile() {
         exit(EXIT_FAILURE);
     }
     printf("PG: *** Reading input file...\n");
+    unsigned int runtime_sum = 0, runtime_squared_sum = 0, count = 0;
     while ((read = getline(&pLine, &len, pFile)) != -1) {
-        if (pLine[0] == '#') {
-            printf("PG: *** Hash detected, skipping line\n");
+        if (pLine[0] == '#') //skip hashes as they are just comments in the input file
             continue;
-        }
 
         Process *pProcess = malloc(sizeof(Process));
         while (!pProcess) {
@@ -164,17 +162,20 @@ void ReadFile() {
         pProcess->mPriority = atoi(strtok(NULL, "\t"));
         pProcess->mRemainTime = pProcess->mRuntime;
         pProcess->mWaitTime = 0;
-        printf("PG: *** Process read with the following:\n");
-        PrintProcess(pProcess);
+        runtime_sum += pProcess->mRuntime;
+        runtime_squared_sum += pProcess->mRuntime * pProcess->mRuntime;
+        count++;
         ProcEnqueue(gProcessQueue, pProcess);
-        printf("PG: *** Above process added to queue!\n");
     }
 
+    double runtime_avg = (double) runtime_sum / count;
+    double runtime_std = sqrt((runtime_squared_sum - (2 * runtime_sum * runtime_avg) + (runtime_avg * runtime_avg * count)) / count);
     printf("PG: *** Releasing file resources...\n");
     fclose(pFile);
     if (pLine)
         free(pLine);
     printf("PG: *** Input file done successfully!\n");
+    printf("\nPG: *** Average runtime = %.2f, STD = %.2f\n", runtime_avg, runtime_std);
 }
 
 void InitIPC() {
