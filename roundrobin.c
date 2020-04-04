@@ -108,7 +108,6 @@ int ReceiveProcess() {
 }
 
 void CleanResources(int signum) {
-    LogEvents(0, 1);
     printf("RR: *** Cleaning scheduler resources\n");
     Process *pProcess = NULL;
     while (ProcDequeue(gProcessQueue, &pProcess)) //while processes queue is not empty
@@ -155,11 +154,17 @@ void ExecuteProcess() {
 
 void AlarmHandler(int signum) {
     gpCurrentProcess->mRemainTime -= gQuanta; //remaining time should have been decreased by the value of the quanta
-    if (!gpCurrentProcess->mRemainTime) //if this processed should finish at the end of the quanta now
+    if (!gpCurrentProcess->mRemainTime) //if this process should finish at the end of the quanta now
         return;
-    while (kill(gpCurrentProcess->mPid, SIGTSTP) == -1) { //stop current process
+
+    if (ProcQueueEmpty(gProcessQueue)) { //if no other processes are available give the current process a new quanta
+        alarm(gQuanta);
+        return;
+    }
+
+    if (kill(gpCurrentProcess->mPid, SIGTSTP) == -1) { //stop current process
         perror("RR: *** Error stopping process");
-        printf("RR: *** Trying again...\n");
+        return;
     }
     gpCurrentProcess->mLastStop = getClk(); //store the time at which it is stopped
     ProcEnqueue(gProcessQueue, gpCurrentProcess); //re-enqueue the process to the queue
@@ -168,8 +173,7 @@ void AlarmHandler(int signum) {
 }
 
 void ChildHandler(int signum) {
-    int status;
-    if (!waitpid(gpCurrentProcess->mPid, &status, WNOHANG)) //if current process did not terminate
+    if (!waitpid(gpCurrentProcess->mPid, NULL, WNOHANG)) //if current process did not terminate
         return;
 
     alarm(0); //cancel pending alarm

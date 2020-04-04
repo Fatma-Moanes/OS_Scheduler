@@ -103,7 +103,6 @@ void ClearResources(int signum) {
     }
     printf("PG: *** Process queue cleaned!\n");
 
-    int status;
     //if this function is invoked due to an interrupt signal then immediately interrupt all processes
     if (signum == SIGINT) {
         //Interrupt forked processes
@@ -116,8 +115,8 @@ void ClearResources(int signum) {
             kill(gClockPid, SIGINT);
         }
         //do not leave before both forked processes are done
-        wait(&status);
-        wait(&status);
+        wait(NULL);
+        wait(NULL);
     } else { //we need to wait until Scheduler exits by itself
         printf("PG: *** Waiting for scheduler to do its job...\n");
         waitpid(gSchedulerPid, &status, 0); //wait until scheduler exits
@@ -128,7 +127,7 @@ void ClearResources(int signum) {
             kill(gClockPid, SIGINT);
         }
         //do not leave before clock is done
-        wait(&status);
+        wait(NULL);
     }
     printf("PG: *** Clean!\n");
     exit(EXIT_SUCCESS);
