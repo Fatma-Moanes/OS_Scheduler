@@ -119,7 +119,7 @@ void ClearResources(int signum) {
         wait(NULL);
     } else { //we need to wait until Scheduler exits by itself
         printf("PG: *** Waiting for scheduler to do its job...\n");
-        waitpid(gSchedulerPid, &status, 0); //wait until scheduler exits
+        waitpid(gSchedulerPid, NULL, 0); //wait until scheduler exits
         printf("PG: *** Scheduler exit signal received\n");
         printf("PG: *** Sending interrupt to clock\n");
         if (gClockPid) {
