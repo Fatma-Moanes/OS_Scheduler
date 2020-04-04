@@ -1,5 +1,5 @@
 build:
-	gcc process_generator.c -o process_generator.out
+	gcc process_generator.c -o process_generator.out -lm
 	gcc clk.c -o clk.out
 	gcc roundrobin.c -o roundrobin.out -lm
 	gcc hpf.c -o hpf.out -lm
