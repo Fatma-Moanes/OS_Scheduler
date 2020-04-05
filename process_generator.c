@@ -28,7 +28,6 @@ int main(int argc, char *argv[]) {
     gProcessQueue = NewProcQueue();
     //catch SIGINT
     signal(SIGINT, ClearResources);
-    // TODO Initialization
     // 1. Read the input files.
     ReadFile();
     // 2. Ask the user for the chosen scheduling algorithm and its parameters, if there are any.
@@ -50,7 +49,6 @@ int main(int argc, char *argv[]) {
     // 4. Use this function after creating the clock process to initialize clock
     initClk();
     // To get time use this
-    // TODO Generation Main Loop
     while (!ProcQueueEmpty(gProcessQueue)) {
         //get current time
         int current_time = getClk();
@@ -84,7 +82,6 @@ int GetUserChoice() {
 }
 
 void ClearResources(int signum) {
-    //TODO Clears all resources in case of interruption
     //Clear IPC resources
     if (gMsgQueueId != 0) {
         printf("PG: *** Cleaning IPC resources...\n");
