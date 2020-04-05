@@ -169,13 +169,15 @@ void ReadFile() {
     }
 
     double runtime_avg = (double) runtime_sum / count;
-    double runtime_std = sqrt((runtime_squared_sum - (2 * runtime_sum * runtime_avg) + (runtime_avg * runtime_avg * count)) / count);
+    double runtime_std = sqrt(
+            (runtime_squared_sum - (2 * runtime_sum * runtime_avg) + (runtime_avg * runtime_avg * count)) / count);
     printf("PG: *** Releasing file resources...\n");
     fclose(pFile);
     if (pLine)
         free(pLine);
     printf("PG: *** Input file done successfully!\n");
-    printf("\nPG: *** Average runtime = %.2f, STD = %.2f\n", runtime_avg, runtime_std);
+    printf("\nPG: *** Total runtime %d/s, %.2f/m, %.2f/h\n", runtime_sum, runtime_sum / 60.0, runtime_sum / (60.0 * 60.0));
+    printf("PG: *** Average runtime = %.2f, STD = %.2f\n", runtime_avg, runtime_std);
 }
 
 void InitIPC() {
